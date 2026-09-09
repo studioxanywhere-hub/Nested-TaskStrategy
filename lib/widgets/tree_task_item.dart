@@ -59,7 +59,7 @@ class TreeTaskItem extends StatelessWidget {
             clipBehavior: Clip.antiAlias,
             child: IntrinsicHeight(
               child: Row(
-                crossAxisAlignment: CrossAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (leftAccentColor != null)
                     Container(
