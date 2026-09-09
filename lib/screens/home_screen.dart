@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/task_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/tree_task_item.dart';
+import '../widgets/project_card.dart';
 import '../widgets/focus_breadcrumb.dart';
 import '../widgets/edit_task_dialog.dart';
 import '../widgets/strategy_insights_dialog.dart';
@@ -235,13 +236,13 @@ class HomeScreen extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                Icons.task_alt_outlined,
+                                isFocusMode ? Icons.subdirectory_arrow_right : Icons.folder_open_outlined,
                                 size: 56,
                                 color: theme.colorScheme.onSurface.withOpacity(0.3),
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                isFocusMode ? 'No subtasks in this branch' : 'No tasks match your filter',
+                                isFocusMode ? 'No subtasks in this branch' : 'No projects found',
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
@@ -250,7 +251,7 @@ class HomeScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Tap the + button to add one!',
+                                isFocusMode ? 'Tap + Add Subtask to add one!' : 'Tap + New Project to start!',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: theme.colorScheme.onSurface.withOpacity(0.4),
@@ -263,8 +264,12 @@ class HomeScreen extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                           itemCount: currentTasks.length,
                           itemBuilder: (context, index) {
+                            final task = currentTasks[index];
+                            if (!isFocusMode) {
+                              return ProjectCard(task: task);
+                            }
                             return TreeTaskItem(
-                              task: currentTasks[index],
+                              task: task,
                               depth: 0,
                             );
                           },

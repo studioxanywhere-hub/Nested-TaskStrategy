@@ -68,6 +68,20 @@ def configure():
             f.write("package com.studioxanywhere.nested\n\nimport io.flutter.embedding.android.FlutterActivity\n\nclass MainActivity: FlutterActivity() {\n}\n")
         print("[Signing] Ensured MainActivity.kt exists.")
 
+    # Step 3.5: Ensure adaptive app launcher icons and colors exist from store_assets/android_res
+    icons_src = "store_assets/android_res"
+    res_dest = "android/app/src/main/res"
+    if os.path.exists(icons_src):
+        for root, dirs, files in os.walk(icons_src):
+            rel_dir = os.path.relpath(root, icons_src)
+            target_dir = os.path.join(res_dest, rel_dir) if rel_dir != "." else res_dest
+            os.makedirs(target_dir, exist_ok=True)
+            for file in files:
+                shutil.copy2(os.path.join(root, file), os.path.join(target_dir, file))
+        print(f"[Signing] Copied official app launcher icons and adaptive resources from {icons_src} to {res_dest}.")
+    else:
+        print("[Signing] WARNING: store_assets/android_res not found!")
+
     # Step 4: Ensure android/local.properties contains flutter.versionCode and flutter.versionName
     loc_props_path = "android/local.properties"
     existing_props = ""
