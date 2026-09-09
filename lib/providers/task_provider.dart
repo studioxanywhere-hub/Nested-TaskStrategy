@@ -279,6 +279,22 @@ class TaskProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Restore Tasks from JSON Backup
+  bool importBackupJson(String jsonStr) {
+    try {
+      final List<TaskItem> imported = _storageService.parseTasksFromJsonString(jsonStr);
+      if (imported.isEmpty) return false;
+      _tasks = imported;
+      _breadcrumbStack.clear();
+      _save();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Import Backup Error: $e');
+      return false;
+    }
+  }
+
   void _save() {
     _storageService.saveTasks(_tasks);
   }

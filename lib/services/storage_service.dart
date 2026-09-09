@@ -12,6 +12,25 @@ class StorageService {
     await prefs.setString(_storageKey, jsonString);
   }
 
+  List<TaskItem> parseTasksFromJsonString(String jsonString) {
+    final decoded = jsonDecode(jsonString);
+    List<dynamic> list;
+    if (decoded is List) {
+      list = decoded;
+    } else if (decoded is Map<String, dynamic>) {
+      if (decoded.containsKey('projects') && decoded['projects'] is List) {
+        list = decoded['projects'] as List;
+      } else if (decoded.containsKey('tasks') && decoded['tasks'] is List) {
+        list = decoded['tasks'] as List;
+      } else {
+        throw const FormatException('Invalid backup format');
+      }
+    } else {
+      throw const FormatException('Invalid JSON format');
+    }
+    return list.map((item) => TaskItem.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
   Future<List<TaskItem>> loadTasks() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString(_storageKey);
@@ -19,8 +38,7 @@ class StorageService {
       return _generateDefaultSampleTasks();
     }
     try {
-      final List<dynamic> decoded = jsonDecode(jsonString);
-      return decoded.map((item) => TaskItem.fromJson(item as Map<String, dynamic>)).toList();
+      return parseTasksFromJsonString(jsonString);
     } catch (e) {
       return _generateDefaultSampleTasks();
     }

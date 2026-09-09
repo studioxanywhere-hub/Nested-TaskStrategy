@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/task_provider.dart';
 import '../theme/app_theme.dart';
 import '../screens/local_insights_screen.dart';
+import 'export_backup_dialog.dart';
 
 class SideOptionsDrawer extends StatelessWidget {
   const SideOptionsDrawer({super.key});
@@ -610,6 +611,53 @@ class _FeedbackModalSheetState extends State<_FeedbackModalSheet> {
                 ),
               ),
             ),
+            // Backup & Export Data Section
+            Card(
+              elevation: 0,
+              color: AppTheme.primary.withOpacity(0.1),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: AppTheme.primary.withOpacity(0.3)),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  Navigator.pop(context);
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => const ExportBackupDialog(),
+                  );
+                },
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+                  child: Row(
+                    children: [
+                      Icon(Icons.sd_storage_outlined, color: AppTheme.primary, size: 22),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Backup, Export & Restore Data',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Save physical files (.json, .md, .txt) to Downloads',
+                              style: TextStyle(fontSize: 10.5, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.primary),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -765,7 +813,7 @@ class _FeedbackModalSheetState extends State<_FeedbackModalSheet> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
-                  'Nested v2.1.8 (Build 11)',
+                  'Nested v2.1.8 (Build 12)',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,

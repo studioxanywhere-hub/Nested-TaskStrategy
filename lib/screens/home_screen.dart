@@ -8,10 +8,18 @@ import '../widgets/focus_breadcrumb.dart';
 import '../widgets/edit_task_dialog.dart';
 import '../widgets/strategy_insights_dialog.dart';
 import '../widgets/side_options_drawer.dart';
+import '../widgets/nested_flowchart_view.dart';
 import 'local_insights_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  bool _isFlowchartView = false;
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +116,52 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (isFocusMode) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          height: 42,
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: theme.colorScheme.outline.withOpacity(0.5)),
+                          ),
+                          child: Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () => setState(() => _isFlowchartView = false),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: !_isFlowchartView ? AppTheme.primary : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.format_list_bulleted,
+                                    size: 16,
+                                    color: !_isFlowchartView ? Colors.white : theme.colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => setState(() => _isFlowchartView = true),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: _isFlowchartView ? AppTheme.primary : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.account_tree_outlined,
+                                    size: 16,
+                                    color: _isFlowchartView ? Colors.white : theme.colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(width: 8),
                       PopupMenuButton<String>(
                         icon: Container(
@@ -230,50 +284,52 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 Expanded(
-                  child: currentTasks.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                isFocusMode ? Icons.subdirectory_arrow_right : Icons.folder_open_outlined,
-                                size: 56,
-                                color: theme.colorScheme.onSurface.withOpacity(0.3),
+                  child: (isFocusMode && _isFlowchartView)
+                      ? NestedFlowchartView(rootTask: provider.breadcrumbStack.last)
+                      : (currentTasks.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    isFocusMode ? Icons.subdirectory_arrow_right : Icons.folder_open_outlined,
+                                    size: 56,
+                                    color: theme.colorScheme.onSurface.withOpacity(0.3),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    isFocusMode ? 'No subtasks in this branch' : 'No projects found',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    isFocusMode ? 'Tap + Add Subtask to add one!' : 'Tap + New Project to start!',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: theme.colorScheme.onSurface.withOpacity(0.4),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 12),
-                              Text(
-                                isFocusMode ? 'No subtasks in this branch' : 'No projects found',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                isFocusMode ? 'Tap + Add Subtask to add one!' : 'Tap + New Project to start!',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: theme.colorScheme.onSurface.withOpacity(0.4),
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                          itemCount: currentTasks.length,
-                          itemBuilder: (context, index) {
-                            final task = currentTasks[index];
-                            if (!isFocusMode) {
-                              return ProjectCard(task: task);
-                            }
-                            return TreeTaskItem(
-                              task: task,
-                              depth: 0,
-                            );
-                          },
-                        ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 88.0),
+                              itemCount: currentTasks.length,
+                              itemBuilder: (context, index) {
+                                final task = currentTasks[index];
+                                if (!isFocusMode) {
+                                  return ProjectCard(task: task);
+                                }
+                                return TreeTaskItem(
+                                  task: task,
+                                  depth: 0,
+                                );
+                              },
+                            )),
                 ),
               ],
             ),
