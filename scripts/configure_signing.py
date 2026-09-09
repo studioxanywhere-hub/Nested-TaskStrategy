@@ -4,8 +4,8 @@ import base64
 import re
 import shutil
 
-VERSION_CODE = 10
-VERSION_NAME = "2.1.7"
+VERSION_CODE = 11
+VERSION_NAME = "2.1.8"
 PACKAGE_NAME = "com.studioxanywhere.nested"
 
 def configure():
