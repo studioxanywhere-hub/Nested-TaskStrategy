@@ -1,3 +1,9 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
 if (localPropertiesFile.exists()) {
@@ -6,17 +12,15 @@ if (localPropertiesFile.exists()) {
     }
 }
 
-def flutterRoot = localProperties.getProperty('flutter.sdk')
-if (flutterRoot == null) {
-    flutterRoot = System.getenv('FLUTTER_ROOT')
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
-
-apply plugin: 'com.android.application'
-apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 android {
     namespace "com.studioxanywhere.nested"
-    compileSdkVersion 36
+    compileSdk 36
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -24,19 +28,16 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    defaultConfig {
-        applicationId "com.studioxanywhere.nested"
-        minSdkVersion 21
-        targetSdkVersion 36
-        versionCode 14
-        versionName "2.2.0"
+    kotlinOptions {
+        jvmTarget = "17"
     }
 
-    
-    def keystoreProperties = new Properties()
-    def keystorePropertiesFile = rootProject.file('key.properties')
-    if (keystorePropertiesFile.exists()) {
-        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    defaultConfig {
+        applicationId "com.studioxanywhere.nested"
+        minSdkVersion flutter.minSdkVersion
+        targetSdk 36
+        versionCode 14
+        versionName "2.2.0"
     }
 
     signingConfigs {
@@ -46,13 +47,18 @@ android {
                 keyPassword keystoreProperties['keyPassword']
                 storeFile file(keystoreProperties['storeFile'])
                 storePassword keystoreProperties['storePassword']
+            } else {
+                keyAlias 'upload'
+                keyPassword 'NestedStrategy2026'
+                storeFile file('upload-keystore.jks')
+                storePassword 'NestedStrategy2026'
             }
         }
     }
 
     buildTypes {
         release {
-            if (keystorePropertiesFile.exists()) { signingConfig signingConfigs.release } else { signingConfig signingConfigs.release }
+            signingConfig signingConfigs.release
             minifyEnabled false
             shrinkResources false
         }
