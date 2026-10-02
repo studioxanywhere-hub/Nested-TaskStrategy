@@ -63,7 +63,7 @@ jobs:
       - name: Build Play Store App Bundle (AAB)
         run: |
           set -o pipefail
-          flutter build appbundle --release --build-name=2.1.7 --build-number=10 -v 2>&1 | tee bundle.log || {
+          flutter build appbundle --release -v 2>&1 | tee bundle.log || {
             echo "====================== FAILURE DIAGNOSTICS ======================"
             grep -A 25 -B 5 "What went wrong:" bundle.log || tail -n 80 bundle.log
             echo "================================================================"
@@ -78,7 +78,7 @@ jobs:
       - name: Build Release APK
         run: |
           set -o pipefail
-          flutter build apk --release --build-name=2.1.7 --build-number=10 -v 2>&1 | tee apk.log || {
+          flutter build apk --release -v 2>&1 | tee apk.log || {
             echo "====================== FAILURE DIAGNOSTICS ======================"
             grep -A 25 -B 5 "What went wrong:" apk.log || tail -n 80 apk.log
             echo "================================================================"
