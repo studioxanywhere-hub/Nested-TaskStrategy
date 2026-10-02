@@ -9,10 +9,12 @@ import 'edit_task_dialog.dart';
 
 class ProjectCard extends StatelessWidget {
   final TaskItem task;
+  final int? index;
 
   const ProjectCard({
     super.key,
     required this.task,
+    this.index,
   });
 
   @override
@@ -49,6 +51,19 @@ class ProjectCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (provider.sortOption == TaskSortOption.custom && index != null) ...[
+                      ReorderableDragStartListener(
+                        index: index!,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8.0, top: 2.0),
+                          child: Icon(
+                            Icons.drag_handle_rounded,
+                            color: theme.colorScheme.onSurface.withOpacity(0.4),
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ],
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(

@@ -36,3 +36,7 @@ android/app/key.properties
 !upload-keystore.jks
 !android/app/upload-keystore.jks
 !android/upload-keystore.jks
+
+# Google Drive sync
+gdrive/
+

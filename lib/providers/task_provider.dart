@@ -3,6 +3,14 @@ import 'package:uuid/uuid.dart';
 import '../models/task_item.dart';
 import '../services/storage_service.dart';
 
+enum TaskSortOption {
+  custom,
+  priorityHighToLow,
+  priorityLowToHigh,
+  statusActiveFirst,
+  alphabetical,
+}
+
 class TaskProvider with ChangeNotifier {
   final StorageService _storageService = StorageService();
   final Uuid _uuid = const Uuid();
@@ -14,6 +22,7 @@ class TaskProvider with ChangeNotifier {
   String _searchQuery = '';
   int? _minWeightFilter;
   bool? _statusFilter; // null = all, true = completed, false = active
+  TaskSortOption _sortOption = TaskSortOption.custom;
   bool _isLoading = true;
 
   TaskProvider() {
@@ -28,7 +37,14 @@ class TaskProvider with ChangeNotifier {
   String get searchQuery => _searchQuery;
   int? get minWeightFilter => _minWeightFilter;
   bool? get statusFilter => _statusFilter;
+  TaskSortOption get sortOption => _sortOption;
   bool get isLoading => _isLoading;
+
+  void setSortOption(TaskSortOption option) {
+    if (_sortOption == option) return;
+    _sortOption = option;
+    notifyListeners();
+  }
 
   // Active view: either the current focused subtask children or root tasks
   List<TaskItem> get currentViewTasks {
@@ -40,7 +56,7 @@ class TaskProvider with ChangeNotifier {
     }
 
     // Apply Search & Filter
-    return source.where((task) {
+    final filtered = source.where((task) {
       if (_searchQuery.isNotEmpty) {
         final matchesName = task.name.toLowerCase().contains(_searchQuery.toLowerCase());
         final matchesDesc = task.description.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -56,6 +72,56 @@ class TaskProvider with ChangeNotifier {
       }
       return true;
     }).toList();
+
+    // Non-destructive Derived Sort with Stable Secondary Ordering (Canonical Custom Index)
+    if (_sortOption == TaskSortOption.custom) {
+      return filtered;
+    }
+
+    final indexMap = <String, int>{};
+    for (int i = 0; i < source.length; i++) {
+      indexMap[source[i].id] = i;
+    }
+
+    final sorted = List<TaskItem>.from(filtered);
+
+    switch (_sortOption) {
+      case TaskSortOption.priorityHighToLow:
+        sorted.sort((a, b) {
+          final cmp = b.weight.compareTo(a.weight);
+          if (cmp != 0) return cmp;
+          return (indexMap[a.id] ?? 0).compareTo(indexMap[b.id] ?? 0);
+        });
+        break;
+      case TaskSortOption.priorityLowToHigh:
+        sorted.sort((a, b) {
+          final cmp = a.weight.compareTo(b.weight);
+          if (cmp != 0) return cmp;
+          return (indexMap[a.id] ?? 0).compareTo(indexMap[b.id] ?? 0);
+        });
+        break;
+      case TaskSortOption.statusActiveFirst:
+        sorted.sort((a, b) {
+          final aDone = a.progress >= 0.999 || a.isDone;
+          final bDone = b.progress >= 0.999 || b.isDone;
+          if (aDone != bDone) {
+            return aDone ? 1 : -1;
+          }
+          return (indexMap[a.id] ?? 0).compareTo(indexMap[b.id] ?? 0);
+        });
+        break;
+      case TaskSortOption.alphabetical:
+        sorted.sort((a, b) {
+          final cmp = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+          if (cmp != 0) return cmp;
+          return (indexMap[a.id] ?? 0).compareTo(indexMap[b.id] ?? 0);
+        });
+        break;
+      case TaskSortOption.custom:
+        break;
+    }
+
+    return sorted;
   }
 
   // Project statistics
@@ -277,6 +343,49 @@ class TaskProvider with ChangeNotifier {
     }
     expandAll(_tasks);
     notifyListeners();
+  }
+
+  // Reorder tasks at current level or specified parent sibling level
+  void reorderTasks(int oldIndex, int newIndex, {String? parentId}) {
+    if (_sortOption != TaskSortOption.custom) return;
+
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+
+    List<TaskItem> targetList;
+    if (parentId != null) {
+      final parent = _findTaskByIdRecursive(_tasks, parentId);
+      if (parent != null) {
+        targetList = parent.children;
+      } else {
+        return;
+      }
+    } else {
+      if (_breadcrumbStack.isEmpty) {
+        targetList = _tasks;
+      } else {
+        targetList = _breadcrumbStack.last.children;
+      }
+    }
+
+    if (oldIndex < 0 || oldIndex >= targetList.length) return;
+    if (newIndex < 0 || newIndex >= targetList.length) return;
+
+    final item = targetList.removeAt(oldIndex);
+    targetList.insert(newIndex, item);
+
+    _save();
+    notifyListeners();
+  }
+
+  TaskItem? _findTaskByIdRecursive(List<TaskItem> list, String id) {
+    for (final task in list) {
+      if (task.id == id) return task;
+      final found = _findTaskByIdRecursive(task.children, id);
+      if (found != null) return found;
+    }
+    return null;
   }
 
   // Restore Tasks from JSON Backup

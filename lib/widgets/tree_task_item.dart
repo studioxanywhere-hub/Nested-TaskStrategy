@@ -11,12 +11,14 @@ class TreeTaskItem extends StatelessWidget {
   final TaskItem task;
   final int depth;
   final int? parentTotalWeight;
+  final int? index;
 
   const TreeTaskItem({
     super.key,
     required this.task,
     this.depth = 0,
     this.parentTotalWeight,
+    this.index,
   });
 
   @override
@@ -77,6 +79,19 @@ class TreeTaskItem extends StatelessWidget {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          if (provider.sortOption == TaskSortOption.custom && index != null) ...[
+                            ReorderableDragStartListener(
+                              index: index!,
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 4.0),
+                                child: Icon(
+                                  Icons.drag_handle_rounded,
+                                  color: theme.colorScheme.onSurface.withOpacity(0.4),
+                                  size: depth > 1 ? 16 : 18,
+                                ),
+                              ),
+                            ),
+                          ],
                           Transform.scale(
                             scale: depth == 0 ? 1.1 : 1.0,
                             child: Checkbox(

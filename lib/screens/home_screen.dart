@@ -21,6 +21,22 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _isFlowchartView = false;
 
+  String _sortOptionLabel(TaskSortOption option) {
+    switch (option) {
+      case TaskSortOption.priorityHighToLow:
+        return 'Priority (High → Low)';
+      case TaskSortOption.priorityLowToHigh:
+        return 'Priority (Low → High)';
+      case TaskSortOption.statusActiveFirst:
+        return 'Status (Active First)';
+      case TaskSortOption.alphabetical:
+        return 'Alphabetical (A → Z)';
+      case TaskSortOption.custom:
+      default:
+        return 'Custom Order';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<TaskProvider>();
@@ -199,9 +215,141 @@ class _HomeScreenState extends State<HomeScreen> {
                           const PopupMenuItem(value: 'clear', child: Text('Reset Filters')),
                         ],
                       ),
+                      const SizedBox(width: 8),
+                      PopupMenuButton<TaskSortOption>(
+                        icon: Container(
+                          height: 42,
+                          width: 42,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: theme.colorScheme.outline.withOpacity(0.5)),
+                          ),
+                          child: Icon(
+                            Icons.sort_rounded,
+                            size: 18,
+                            color: provider.sortOption != TaskSortOption.custom
+                                ? AppTheme.primary
+                                : theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        tooltip: 'Sort Order',
+                        onSelected: (option) {
+                          provider.setSortOption(option);
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: TaskSortOption.custom,
+                            child: Row(
+                              children: [
+                                Icon(Icons.drag_indicator_rounded, size: 18, color: provider.sortOption == TaskSortOption.custom ? AppTheme.primary : null),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Custom Drag & Drop',
+                                  style: TextStyle(
+                                    fontWeight: provider.sortOption == TaskSortOption.custom ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          PopupMenuItem(
+                            value: TaskSortOption.priorityHighToLow,
+                            child: Row(
+                              children: [
+                                Icon(Icons.arrow_downward_rounded, size: 18, color: provider.sortOption == TaskSortOption.priorityHighToLow ? AppTheme.primary : null),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Priority: High → Low (10-1)',
+                                  style: TextStyle(
+                                    fontWeight: provider.sortOption == TaskSortOption.priorityHighToLow ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: TaskSortOption.priorityLowToHigh,
+                            child: Row(
+                              children: [
+                                Icon(Icons.arrow_upward_rounded, size: 18, color: provider.sortOption == TaskSortOption.priorityLowToHigh ? AppTheme.primary : null),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Priority: Low → High (1-10)',
+                                  style: TextStyle(
+                                    fontWeight: provider.sortOption == TaskSortOption.priorityLowToHigh ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: TaskSortOption.statusActiveFirst,
+                            child: Row(
+                              children: [
+                                Icon(Icons.pending_actions_rounded, size: 18, color: provider.sortOption == TaskSortOption.statusActiveFirst ? AppTheme.primary : null),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Status: Active First',
+                                  style: TextStyle(
+                                    fontWeight: provider.sortOption == TaskSortOption.statusActiveFirst ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: TaskSortOption.alphabetical,
+                            child: Row(
+                              children: [
+                                Icon(Icons.sort_by_alpha_rounded, size: 18, color: provider.sortOption == TaskSortOption.alphabetical ? AppTheme.primary : null),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Alphabetical: A → Z',
+                                  style: TextStyle(
+                                    fontWeight: provider.sortOption == TaskSortOption.alphabetical ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
+                if (provider.sortOption != TaskSortOption.custom)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, size: 14, color: AppTheme.primary),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Sorted by ${_sortOptionLabel(provider.sortOption)} • Drag reordering disabled',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.primary),
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => provider.setSortOption(TaskSortOption.custom),
+                            child: const Padding(
+                              padding: EdgeInsets.only(left: 4.0),
+                              child: Icon(Icons.close_rounded, size: 14, color: AppTheme.primary),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 if (!isFocusMode)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
@@ -316,20 +464,51 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ],
                               ),
                             )
-                          : ListView.builder(
-                              padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 88.0),
-                              itemCount: currentTasks.length,
-                              itemBuilder: (context, index) {
-                                final task = currentTasks[index];
-                                if (!isFocusMode) {
-                                  return ProjectCard(task: task);
-                                }
-                                return TreeTaskItem(
-                                  task: task,
-                                  depth: 0,
-                                );
-                              },
-                            )),
+                          : (provider.sortOption == TaskSortOption.custom
+                              ? ReorderableListView.builder(
+                                  padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 88.0),
+                                  itemCount: currentTasks.length,
+                                  onReorder: (oldIndex, newIndex) {
+                                    final parentId = isFocusMode ? provider.breadcrumbStack.last.id : null;
+                                    provider.reorderTasks(oldIndex, newIndex, parentId: parentId);
+                                  },
+                                  itemBuilder: (context, index) {
+                                    final task = currentTasks[index];
+                                    if (!isFocusMode) {
+                                      return ProjectCard(
+                                        key: ValueKey(task.id),
+                                        task: task,
+                                        index: index,
+                                      );
+                                    }
+                                    return TreeTaskItem(
+                                      key: ValueKey(task.id),
+                                      task: task,
+                                      depth: 0,
+                                      index: index,
+                                    );
+                                  },
+                                )
+                              : ListView.builder(
+                                  padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 88.0),
+                                  itemCount: currentTasks.length,
+                                  itemBuilder: (context, index) {
+                                    final task = currentTasks[index];
+                                    if (!isFocusMode) {
+                                      return ProjectCard(
+                                        key: ValueKey(task.id),
+                                        task: task,
+                                        index: index,
+                                      );
+                                    }
+                                    return TreeTaskItem(
+                                      key: ValueKey(task.id),
+                                      task: task,
+                                      depth: 0,
+                                      index: index,
+                                    );
+                                  },
+                                ))),
                 ),
               ],
             ),
