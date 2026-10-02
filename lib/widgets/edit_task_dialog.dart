@@ -6,7 +6,7 @@ import '../theme/app_theme.dart';
 class EditTaskDialog extends StatefulWidget {
   final TaskItem? initialTask;
   final String? parentName;
-  final void Function(String name, String description, int weight, int? deadline) onSave;
+  final void Function(String name, String description, int weight, DateTime? deadline) onSave;
 
   const EditTaskDialog({
     super.key,
@@ -32,7 +32,7 @@ class _EditTaskDialogState extends State<EditTaskDialog> {
     _descController = TextEditingController(text: widget.initialTask?.description ?? '');
     _weight = widget.initialTask?.weight ?? 5;
     if (widget.initialTask?.deadline != null) {
-      _selectedDeadline = DateTime.fromMillisecondsSinceEpoch(widget.initialTask!.deadline!);
+      _selectedDeadline = widget.initialTask!.deadline;
     }
   }
 
@@ -226,7 +226,7 @@ class _EditTaskDialogState extends State<EditTaskDialog> {
                           title,
                           _descController.text.trim(),
                           _weight,
-                          _selectedDeadline?.millisecondsSinceEpoch,
+                          _selectedDeadline,
                         );
                         Navigator.of(context).pop();
                       },

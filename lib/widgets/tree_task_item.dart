@@ -40,24 +40,29 @@ class TreeTaskItem extends StatelessWidget {
             ? const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0)
             : const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0));
 
+    final double indentLeft = depth <= 0 ? 0.0 : (depth == 1 ? 12.0 : 20.0);
+    final double itemOpacity = task.isFilterAncestor ? 0.40 : 1.0;
+
     return Padding(
       padding: EdgeInsets.only(
-        left: depth > 0 ? (depth == 1 ? 12.0 : 10.0) : 0.0,
+        left: indentLeft,
         top: 2.0,
         bottom: 2.0,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Card(
-            elevation: depth == 0 ? 1.5 : 0.5,
-            color: theme.cardColor.withOpacity(surfaceOpacity),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(depth >= 2 ? 8 : 12),
-              side: BorderSide(
-                color: theme.colorScheme.outline.withOpacity(depth == 0 ? 0.3 : 0.15),
+          Opacity(
+            opacity: itemOpacity,
+            child: Card(
+              elevation: depth == 0 ? 1.5 : 0.5,
+              color: theme.cardColor.withOpacity(surfaceOpacity),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(depth >= 2 ? 8 : 12),
+                side: BorderSide(
+                  color: theme.colorScheme.outline.withOpacity(depth == 0 ? 0.3 : 0.15),
+                ),
               ),
-            ),
             clipBehavior: Clip.antiAlias,
             child: Container(
               decoration: BoxDecoration(
@@ -140,7 +145,15 @@ class TreeTaskItem extends StatelessWidget {
                             compact: depth > 0,
                           ),
                           const SizedBox(width: 4),
-                          if (hasChildren)
+                          if (hasChildren) ...[
+                            if (depth >= 2)
+                              IconButton(
+                                tooltip: 'Focus on Branch',
+                                icon: const Icon(Icons.filter_center_focus, size: 16, color: AppTheme.primary),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () => provider.drillDown(task),
+                              ),
                             IconButton(
                               icon: AnimatedRotation(
                                 turns: task.isExpanded ? 0.25 : 0.0,
@@ -151,6 +164,7 @@ class TreeTaskItem extends StatelessWidget {
                               constraints: const BoxConstraints(),
                               onPressed: () => provider.toggleExpand(task.id),
                             ),
+                          ],
                           PopupMenuButton<String>(
                             icon: Icon(Icons.more_vert, size: depth > 1 ? 16 : 18),
                             padding: EdgeInsets.zero,
@@ -256,6 +270,7 @@ class TreeTaskItem extends StatelessWidget {
               ),
             ),
           ),
+        ),
           AnimatedSize(
             duration: const Duration(milliseconds: 200),
             curve: Curves.fastOutSlowIn,

@@ -5,21 +5,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $gdriveRoot = Join-Path $env:USERPROFILE "Google Drive"
 $targetGdriveDir = Join-Path $gdriveRoot $appName
 $localGdriveDir = Join-Path $projectRoot "gdrive\$appName"
-$gDriveAlt = "G:\My Drive\$appName"
-
-Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "  SYNCING $($appName.ToUpper()) TO GOOGLE DRIVE" -ForegroundColor Cyan
-Write-Host "============================================================" -ForegroundColor Cyan
-
-# Ensure target directories exist
-New-Item -ItemType Directory -Force -Path $targetGdriveDir | Out-Null
-New-Item -ItemType Directory -Force -Path $localGdriveDir | Out-Null
-
 $syncTargets = @($targetGdriveDir, $localGdriveDir)
-if (Test-Path "G:\My Drive") {
-    New-Item -ItemType Directory -Force -Path $gDriveAlt | Out-Null
-    $syncTargets += $gDriveAlt
-}
 
 $artifacts = @(
     @{

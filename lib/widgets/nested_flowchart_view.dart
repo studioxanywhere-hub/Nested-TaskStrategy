@@ -143,23 +143,25 @@ class FlowchartNodeWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Node Card Box
-        Card(
-          elevation: depth == 0 ? 3 : 1,
-          shadowColor: tierColor.withOpacity(0.2),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: isDone ? AppTheme.secondary : tierColor.withOpacity(0.6),
-              width: depth == 0 ? 2 : 1.2,
+        Opacity(
+          opacity: task.isFilterAncestor ? 0.4 : 1.0,
+          child: Card(
+            elevation: depth == 0 ? 3 : 1,
+            shadowColor: tierColor.withOpacity(0.2),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: isDone ? AppTheme.secondary : tierColor.withOpacity(0.6),
+                width: depth == 0 ? 2 : 1.2,
+              ),
             ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Container(
-            width: 270,
-            decoration: BoxDecoration(
-              color: theme.cardColor,
-              border: Border(left: BorderSide(color: tierColor, width: 4.5)),
-            ),
+            clipBehavior: Clip.antiAlias,
+            child: Container(
+              width: 260,
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                border: Border(left: BorderSide(color: tierColor, width: 4.0)),
+              ),
             child: InkWell(
               onTap: () {
                 if (hasChildren) {
@@ -355,9 +357,6 @@ class FlowchartNodeWidget extends StatelessWidget {
                               ],
                             ),
                           ],
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -365,7 +364,7 @@ class FlowchartNodeWidget extends StatelessWidget {
           ),
         ),
 
-        // Subtask Nodes Hierarchy with Vertical Line Connectors
+        // Subtask Nodes Hierarchy with 1.5px Vertical Spine Connectors
         if (hasChildren && task.isExpanded)
           Padding(
             padding: const EdgeInsets.only(left: 16.0),
@@ -377,7 +376,7 @@ class FlowchartNodeWidget extends StatelessWidget {
                     top: 0,
                     bottom: 24,
                     child: Container(
-                      width: 2.5,
+                      width: 1.5,
                       decoration: BoxDecoration(
                         color: tierColor.withOpacity(0.4),
                         borderRadius: BorderRadius.circular(1),
@@ -394,7 +393,7 @@ class FlowchartNodeWidget extends StatelessWidget {
                           children: [
                             Container(
                               width: 14,
-                              height: 2.5,
+                              height: 1.5,
                               margin: const EdgeInsets.only(top: 24, right: 6),
                               color: tierColor.withOpacity(0.4),
                             ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
 import '../models/task_item.dart';
 import '../services/storage_service.dart';
 
@@ -13,40 +12,111 @@ enum TaskSortOption {
 
 class TaskProvider with ChangeNotifier {
   final StorageService _storageService = StorageService();
-  final Uuid _uuid = const Uuid();
-
   List<TaskItem> _tasks = [];
-  final List<TaskItem> _breadcrumbStack = [];
-
-  bool _isDarkMode = true;
-  String _searchQuery = '';
-  int? _minWeightFilter;
-  bool? _statusFilter; // null = all, true = completed, false = active
-  TaskSortOption _sortOption = TaskSortOption.custom;
   bool _isLoading = true;
+  bool _isDarkMode = true;
 
-  TaskProvider() {
-    _init();
-  }
+  final List<TaskItem> _breadcrumbStack = [];
+  TaskSortOption _sortOption = TaskSortOption.custom;
+  int? _minWeightFilter;
+  bool? _statusFilter;
+  String _searchQuery = '';
 
-  // Getters
   List<TaskItem> get tasks => _tasks;
-  List<TaskItem> get rootTasks => _tasks;
-  List<TaskItem> get breadcrumbStack => _breadcrumbStack;
+  bool get isLoading => _isLoading;
   bool get isDarkMode => _isDarkMode;
-  String get searchQuery => _searchQuery;
+  List<TaskItem> get breadcrumbStack => List.unmodifiable(_breadcrumbStack);
+  TaskSortOption get sortOption => _sortOption;
   int? get minWeightFilter => _minWeightFilter;
   bool? get statusFilter => _statusFilter;
-  TaskSortOption get sortOption => _sortOption;
-  bool get isLoading => _isLoading;
+  String get searchQuery => _searchQuery;
+  TaskStrategyMetrics get strategyMetrics => TaskStrategyMetrics.compute(_tasks);
+
+  TaskProvider() {
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    _isLoading = true;
+    notifyListeners();
+    _isDarkMode = await _storageService.loadDarkMode();
+    _tasks = await _storageService.loadTasks();
+    _applyFiltersAndSort();
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  void toggleTheme() {
+    _isDarkMode = !_isDarkMode;
+    _storageService.saveDarkMode(_isDarkMode);
+    notifyListeners();
+  }
 
   void setSortOption(TaskSortOption option) {
     if (_sortOption == option) return;
     _sortOption = option;
+    _applyFiltersAndSort();
     notifyListeners();
   }
 
-  // Active view: either the current focused subtask children or root tasks
+  void setFilter({int? minWeight, bool? status}) {
+    _minWeightFilter = minWeight;
+    _statusFilter = status;
+    _applyFiltersAndSort();
+    notifyListeners();
+  }
+
+  void clearFilters() {
+    _minWeightFilter = null;
+    _statusFilter = null;
+    _searchQuery = '';
+    _applyFiltersAndSort();
+    notifyListeners();
+  }
+
+  void setSearchQuery(String query) {
+    _searchQuery = query.trim().toLowerCase();
+    _applyFiltersAndSort();
+    notifyListeners();
+  }
+
+  void _applyFiltersAndSort() {
+    for (var task in _tasks) {
+      _evaluateTaskFilters(task);
+    }
+  }
+
+  bool _evaluateTaskFilters(TaskItem task) {
+    bool matchesSelf = true;
+
+    if (_searchQuery.isNotEmpty) {
+      bool nameMatch = task.name.toLowerCase().contains(_searchQuery);
+      bool descMatch = task.description.toLowerCase().contains(_searchQuery);
+      if (!nameMatch && !descMatch) matchesSelf = false;
+    }
+
+    if (_minWeightFilter != null && task.weight < _minWeightFilter!) {
+      matchesSelf = false;
+    }
+
+    if (_statusFilter != null) {
+      bool isComplete = task.progress >= 0.999;
+      if (_statusFilter! && !isComplete) matchesSelf = false;
+      if (!_statusFilter! && isComplete) matchesSelf = false;
+    }
+
+    bool hasMatchingChild = false;
+    for (var child in task.children) {
+      bool childMatches = _evaluateTaskFilters(child);
+      if (childMatches) hasMatchingChild = true;
+    }
+
+    task.isFilterMatch = matchesSelf;
+    task.isFilterAncestor = !matchesSelf && hasMatchingChild;
+
+    return matchesSelf || hasMatchingChild;
+  }
+
   List<TaskItem> get currentViewTasks {
     List<TaskItem> source;
     if (_breadcrumbStack.isEmpty) {
@@ -55,128 +125,95 @@ class TaskProvider with ChangeNotifier {
       source = _breadcrumbStack.last.children;
     }
 
-    // Apply Search & Filter
-    final filtered = source.where((task) {
-      if (_searchQuery.isNotEmpty) {
-        final matchesName = task.name.toLowerCase().contains(_searchQuery.toLowerCase());
-        final matchesDesc = task.description.toLowerCase().contains(_searchQuery.toLowerCase());
-        if (!matchesName && !matchesDesc) return false;
-      }
-      if (_minWeightFilter != null && task.weight < _minWeightFilter!) {
-        return false;
-      }
-      if (_statusFilter != null) {
-        final isComplete = task.progress >= 0.999;
-        if (_statusFilter == true && !isComplete) return false;
-        if (_statusFilter == false && isComplete) return false;
-      }
-      return true;
-    }).toList();
+    List<TaskItem> visible = source.where((t) => t.isFilterMatch || t.isFilterAncestor).toList();
 
-    // Non-destructive Derived Sort with Stable Secondary Ordering (Canonical Custom Index)
     if (_sortOption == TaskSortOption.custom) {
-      return filtered;
+      return visible;
     }
 
     final indexMap = <String, int>{};
-    for (int i = 0; i < source.length; i++) {
-      indexMap[source[i].id] = i;
+    for (int i = 0; i < visible.length; i++) {
+      indexMap[visible[i].id] = i;
     }
 
-    final sorted = List<TaskItem>.from(filtered);
+    final sorted = List<TaskItem>.from(visible);
 
-    switch (_sortOption) {
-      case TaskSortOption.priorityHighToLow:
-        sorted.sort((a, b) {
-          final cmp = b.weight.compareTo(a.weight);
-          if (cmp != 0) return cmp;
-          return (indexMap[a.id] ?? 0).compareTo(indexMap[b.id] ?? 0);
-        });
-        break;
-      case TaskSortOption.priorityLowToHigh:
-        sorted.sort((a, b) {
-          final cmp = a.weight.compareTo(b.weight);
-          if (cmp != 0) return cmp;
-          return (indexMap[a.id] ?? 0).compareTo(indexMap[b.id] ?? 0);
-        });
-        break;
-      case TaskSortOption.statusActiveFirst:
-        sorted.sort((a, b) {
-          final aDone = a.progress >= 0.999 || a.isDone;
-          final bDone = b.progress >= 0.999 || b.isDone;
-          if (aDone != bDone) {
-            return aDone ? 1 : -1;
-          }
-          return (indexMap[a.id] ?? 0).compareTo(indexMap[b.id] ?? 0);
-        });
-        break;
-      case TaskSortOption.alphabetical:
-        sorted.sort((a, b) {
-          final cmp = a.name.toLowerCase().compareTo(b.name.toLowerCase());
-          if (cmp != 0) return cmp;
-          return (indexMap[a.id] ?? 0).compareTo(indexMap[b.id] ?? 0);
-        });
-        break;
-      case TaskSortOption.custom:
-        break;
-    }
+    sorted.sort((a, b) {
+      int primaryComparison = 0;
+      switch (_sortOption) {
+        case TaskSortOption.priorityHighToLow:
+          primaryComparison = b.weight.compareTo(a.weight);
+          break;
+        case TaskSortOption.priorityLowToHigh:
+          primaryComparison = a.weight.compareTo(b.weight);
+          break;
+        case TaskSortOption.statusActiveFirst:
+          int aStatus = a.progress >= 0.999 ? 1 : 0;
+          int bStatus = b.progress >= 0.999 ? 1 : 0;
+          primaryComparison = aStatus.compareTo(bStatus);
+          break;
+        case TaskSortOption.alphabetical:
+          primaryComparison = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+          break;
+        case TaskSortOption.custom:
+          break;
+      }
+
+      if (primaryComparison != 0) return primaryComparison;
+      return (indexMap[a.id] ?? 0).compareTo(indexMap[b.id] ?? 0);
+    });
 
     return sorted;
   }
 
-  // Project statistics
-  int get totalRootProjects => _tasks.length;
-  
-  double get overallProgress {
-    if (_tasks.isEmpty) return 0.0;
-    final totalWeight = _tasks.fold(0, (sum, t) => sum + t.weight);
-    if (totalWeight == 0) return 0.0;
-    final weightedSum = _tasks.fold(0.0, (sum, t) => sum + (t.progress * t.weight));
-    return (weightedSum / totalWeight).clamp(0.0, 1.0);
-  }
+  Future<void> reorderTasks(int oldIndex, int newIndex, {String? parentId}) async {
+    if (_sortOption != TaskSortOption.custom) return;
 
-  int get totalTasksCount {
-    int count = _tasks.length;
-    for (final task in _tasks) {
-      count += task.recursiveSubtaskCount;
+    List<TaskItem> targetList;
+    if (parentId == null) {
+      targetList = _tasks;
+    } else {
+      final parent = _findTaskById(_tasks, parentId);
+      if (parent == null) return;
+      targetList = parent.children;
     }
-    return count;
-  }
 
-  TaskStrategyMetrics get strategyMetrics => TaskStrategyMetrics.compute(_tasks);
+    if (oldIndex < 0 || oldIndex >= targetList.length) return;
+    if (oldIndex < newIndex) newIndex -= 1;
+    if (newIndex < 0 || newIndex > targetList.length) return;
 
-  Future<void> _init() async {
-    _isDarkMode = await _storageService.loadThemeMode();
-    _tasks = await _storageService.loadTasks();
-    _isLoading = false;
+    final movedItem = targetList.removeAt(oldIndex);
+    targetList.insert(newIndex, movedItem);
+
+    await _storageService.saveTasks(_tasks);
     notifyListeners();
   }
 
-  void toggleTheme() {
-    _isDarkMode = !_isDarkMode;
-    _storageService.saveThemeMode(_isDarkMode);
+  void setExpansionDepth(int maxDepth, {List<TaskItem>? nodes, int currentDepth = 0}) {
+    nodes ??= _tasks;
+    for (var node in nodes) {
+      node.isExpanded = currentDepth < maxDepth;
+      if (node.children.isNotEmpty) {
+        setExpansionDepth(maxDepth, nodes: node.children, currentDepth: currentDepth + 1);
+      }
+    }
     notifyListeners();
   }
 
-  void setSearchQuery(String query) {
-    _searchQuery = query;
+  void setAllExpanded(bool expanded) {
+    _setExpandedRecursive(_tasks, expanded);
     notifyListeners();
   }
 
-  void setFilter({int? minWeight, bool? status}) {
-    _minWeightFilter = minWeight;
-    _statusFilter = status;
-    notifyListeners();
+  void _setExpandedRecursive(List<TaskItem> list, bool expanded) {
+    for (var t in list) {
+      t.isExpanded = expanded;
+      if (t.children.isNotEmpty) {
+        _setExpandedRecursive(t.children, expanded);
+      }
+    }
   }
 
-  void clearFilters() {
-    _searchQuery = '';
-    _minWeightFilter = null;
-    _statusFilter = null;
-    notifyListeners();
-  }
-
-  // Drill-down Focus Mode
   void drillDown(TaskItem task) {
     _breadcrumbStack.add(task);
     notifyListeners();
@@ -189,7 +226,7 @@ class TaskProvider with ChangeNotifier {
     }
   }
 
-  void navigateToBreadcrumbIndex(int index) {
+  void popToBreadcrumb(int index) {
     if (index < 0) {
       _breadcrumbStack.clear();
     } else if (index < _breadcrumbStack.length) {
@@ -198,213 +235,120 @@ class TaskProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Task Mutations
-  void addRootTask({
-    required String name,
-    String description = '',
-    int weight = 5,
-    int? deadline,
-  }) {
-    final newTask = TaskItem(
-      id: _uuid.v4(),
-      name: name,
-      description: description,
-      weight: weight,
-      deadline: deadline,
-    );
-    _tasks.insert(0, newTask);
-    _save();
-    notifyListeners();
-  }
+  void navigateToBreadcrumbIndex(int index) => popToBreadcrumb(index);
 
-  void addSubTask({
-    required String parentId,
-    required String name,
-    String description = '',
-    int weight = 5,
-    int? deadline,
-  }) {
-    final newTask = TaskItem(
-      id: _uuid.v4(),
-      parentId: parentId,
-      name: name,
-      description: description,
-      weight: weight,
-      deadline: deadline,
-    );
-
-    _insertChildRecursive(_tasks, parentId, newTask);
-    _save();
-    notifyListeners();
-  }
-
-  bool _insertChildRecursive(List<TaskItem> list, String parentId, TaskItem newChild) {
-    for (final task in list) {
-      if (task.id == parentId) {
-        task.children.add(newChild);
-        task.isExpanded = true;
-        return true;
-      }
-      if (_insertChildRecursive(task.children, parentId, newChild)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  void updateTask({
-    required String id,
-    required String name,
-    required String description,
-    required int weight,
-    int? deadline,
-  }) {
-    _updateRecursive(_tasks, id, (task) {
-      task.name = name;
-      task.description = description;
-      task.weight = weight.clamp(1, 10);
-      task.deadline = deadline;
-    });
-    _save();
-    notifyListeners();
-  }
-
-  bool _updateRecursive(List<TaskItem> list, String id, void Function(TaskItem) updater) {
-    for (final task in list) {
-      if (task.id == id) {
-        updater(task);
-        return true;
-      }
-      if (_updateRecursive(task.children, id, updater)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  void toggleTaskDone(String id, {bool cascade = true}) {
-    _toggleDoneRecursive(_tasks, id, cascade);
-    _save();
-    notifyListeners();
-  }
-
-  bool _toggleDoneRecursive(List<TaskItem> list, String id, bool cascade) {
-    for (final task in list) {
-      if (task.id == id) {
-        final newDone = !task.isDone;
-        if (cascade) {
-          task.setDoneRecursive(newDone);
-        } else {
-          task.isDone = newDone;
-        }
-        return true;
-      }
-      if (_toggleDoneRecursive(task.children, id, cascade)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  void deleteTask(String id) {
-    _deleteRecursive(_tasks, id);
-    _breadcrumbStack.removeWhere((t) => t.id == id);
-    _save();
-    notifyListeners();
-  }
-
-  bool _deleteRecursive(List<TaskItem> list, String id) {
-    final index = list.indexWhere((t) => t.id == id);
-    if (index != -1) {
-      list.removeAt(index);
-      return true;
-    }
-    for (final task in list) {
-      if (_deleteRecursive(task.children, id)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  void toggleExpand(String id) {
-    _updateRecursive(_tasks, id, (task) {
-      task.isExpanded = !task.isExpanded;
-    });
-    notifyListeners();
-  }
-
-  void setAllExpanded(bool expanded) {
-    void expandAll(List<TaskItem> list) {
-      for (final task in list) {
-        task.isExpanded = expanded;
-        expandAll(task.children);
-      }
-    }
-    expandAll(_tasks);
-    notifyListeners();
-  }
-
-  // Reorder tasks at current level or specified parent sibling level
-  void reorderTasks(int oldIndex, int newIndex, {String? parentId}) {
-    if (_sortOption != TaskSortOption.custom) return;
-
-    if (oldIndex < newIndex) {
-      newIndex -= 1;
-    }
-
-    List<TaskItem> targetList;
-    if (parentId != null) {
-      final parent = _findTaskByIdRecursive(_tasks, parentId);
-      if (parent != null) {
-        targetList = parent.children;
-      } else {
-        return;
-      }
-    } else {
-      if (_breadcrumbStack.isEmpty) {
-        targetList = _tasks;
-      } else {
-        targetList = _breadcrumbStack.last.children;
-      }
-    }
-
-    if (oldIndex < 0 || oldIndex >= targetList.length) return;
-    if (newIndex < 0 || newIndex >= targetList.length) return;
-
-    final item = targetList.removeAt(oldIndex);
-    targetList.insert(newIndex, item);
-
-    _save();
-    notifyListeners();
-  }
-
-  TaskItem? _findTaskByIdRecursive(List<TaskItem> list, String id) {
-    for (final task in list) {
+  TaskItem? _findTaskById(List<TaskItem> list, String id) {
+    for (var task in list) {
       if (task.id == id) return task;
-      final found = _findTaskByIdRecursive(task.children, id);
+      var found = _findTaskById(task.children, id);
       if (found != null) return found;
     }
     return null;
   }
 
-  // Restore Tasks from JSON Backup
-  bool importBackupJson(String jsonStr) {
-    try {
-      final List<TaskItem> imported = _storageService.parseTasksFromJsonString(jsonStr);
-      if (imported.isEmpty) return false;
-      _tasks = imported;
-      _breadcrumbStack.clear();
-      _save();
+  Future<void> addRootTask({required String name, String description = '', int weight = 1, DateTime? deadline}) async {
+    final newTask = TaskItem(
+      id: const Uuid().v4(),
+      name: name,
+      description: description,
+      weight: weight.clamp(1, 10),
+      deadline: deadline,
+    );
+    _tasks.add(newTask);
+    _applyFiltersAndSort();
+    await _storageService.saveTasks(_tasks);
+    notifyListeners();
+  }
+
+  Future<void> addSubTask({required String parentId, required String name, String description = '', int weight = 1, DateTime? deadline}) async {
+    final parent = _findTaskById(_tasks, parentId);
+    if (parent != null) {
+      parent.children.add(TaskItem(
+        id: const Uuid().v4(),
+        name: name,
+        description: description,
+        weight: weight.clamp(1, 10),
+        deadline: deadline,
+      ));
+      parent.isExpanded = true;
+      _applyFiltersAndSort();
+      await _storageService.saveTasks(_tasks);
       notifyListeners();
-      return true;
-    } catch (e) {
-      debugPrint('Import Backup Error: $e');
-      return false;
     }
   }
 
-  void _save() {
-    _storageService.saveTasks(_tasks);
+  Future<void> toggleTaskDone(String id, {bool cascade = true}) async {
+    final task = _findTaskById(_tasks, id);
+    if (task != null) {
+      bool newStatus = !(task.progress >= 0.999);
+      _setDoneRecursive(task, newStatus);
+      _applyFiltersAndSort();
+      await _storageService.saveTasks(_tasks);
+      notifyListeners();
+    }
+  }
+
+  void _setDoneRecursive(TaskItem task, bool status) {
+    task.isDone = status;
+    for (var child in task.children) {
+      _setDoneRecursive(child, status);
+    }
+  }
+
+  Future<void> updateTask({required String id, required String name, required String description, required int weight, DateTime? deadline}) async {
+    final task = _findTaskById(_tasks, id);
+    if (task != null) {
+      task.name = name;
+      task.description = description;
+      task.weight = weight.clamp(1, 10);
+      _applyFiltersAndSort();
+      await _storageService.saveTasks(_tasks);
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteTask(String id) async {
+    _deleteRecursive(_tasks, id);
+    _breadcrumbStack.removeWhere((b) => b.id == id);
+    _applyFiltersAndSort();
+    await _storageService.saveTasks(_tasks);
+    notifyListeners();
+  }
+
+  bool _deleteRecursive(List<TaskItem> list, String id) {
+    int index = list.indexWhere((t) => t.id == id);
+    if (index != -1) {
+      list.removeAt(index);
+      return true;
+    }
+    for (var item in list) {
+      if (_deleteRecursive(item.children, id)) return true;
+    }
+    return false;
+  }
+
+  void toggleExpand(String id) {
+    final task = _findTaskById(_tasks, id);
+    if (task != null) {
+      task.isExpanded = !task.isExpanded;
+      notifyListeners();
+    }
+  }
+
+  int get totalRootProjects => _tasks.length;
+  int get totalTasksCount => _tasks.fold(0, (sum, t) => sum + 1 + t.totalSubtasksCount);
+
+  double get overallProgress {
+    if (_tasks.isEmpty) return 0.0;
+    double sum = _tasks.fold(0.0, (s, t) => s + t.progress);
+    return sum / _tasks.length;
+  }
+
+  int get maxProjectDepth {
+    if (_tasks.isEmpty) return 0;
+    return _tasks.fold(0, (max, t) {
+      int d = t.maxDepth;
+      return d > max ? d : max;
+    });
   }
 }

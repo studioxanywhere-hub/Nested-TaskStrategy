@@ -1,4 +1,4 @@
-<manifest android:versionName="2.1.8" android:versionCode="13" xmlns:android="http://schemas.android.com/apk/res/android"
+<manifest android:versionName="2.2.0" android:versionCode="14" xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.studioxanywhere.nested">
    <application
         android:label="Nested: Task Strategy"

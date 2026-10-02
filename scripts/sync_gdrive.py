@@ -12,12 +12,9 @@ GDRIVE_ROOT = USER_HOME / "Google Drive"
 TARGET_GDRIVE_DIR = GDRIVE_ROOT / APP_NAME
 LOCAL_GDRIVE_DIR = PROJECT_ROOT / "gdrive" / APP_NAME
 
-# Secondary Google Drive (e.g. G: drive if exists)
-G_DRIVE_ALT = Path(r"G:\My Drive") / APP_NAME
-
-print("=" * 60)
-print(f"  SYNCING {APP_NAME.upper()} TO GOOGLE DRIVE")
-print("=" * 60)
+# Ensure target directories exist
+TARGET_GDRIVE_DIR.mkdir(parents=True, exist_ok=True)
+LOCAL_GDRIVE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Artifact sources to sync
 artifacts = [
@@ -48,17 +45,7 @@ artifacts = [
     },
 ]
 
-# Ensure target directories exist
-TARGET_GDRIVE_DIR.mkdir(parents=True, exist_ok=True)
-LOCAL_GDRIVE_DIR.mkdir(parents=True, exist_ok=True)
-
 sync_targets = [TARGET_GDRIVE_DIR, LOCAL_GDRIVE_DIR]
-if G_DRIVE_ALT.parent.exists():
-    try:
-        G_DRIVE_ALT.mkdir(parents=True, exist_ok=True)
-        sync_targets.append(G_DRIVE_ALT)
-    except Exception as e:
-        print(f"[!] Could not create G: drive alt directory: {e}")
 
 synced_count = 0
 for art in artifacts:

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../models/task_item.dart';
 import '../providers/task_provider.dart';
 import '../theme/app_theme.dart';
 import '../screens/local_insights_screen.dart';
@@ -144,7 +145,7 @@ class SideOptionsDrawer extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Nested: Task Strategy v2.1.7',
+              'Nested: Task Strategy v2.2.0',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             SizedBox(height: 8),
@@ -260,7 +261,7 @@ class SideOptionsDrawer extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: const Text(
-                            'v2.1.7 • Release',
+                            'v2.2.0 • Release',
                             style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.grey),
                           ),
                         ),
@@ -516,7 +517,7 @@ class _FeedbackModalSheetState extends State<_FeedbackModalSheet> {
       buffer.writeln('• Total Tasks: ${metrics.totalTasks} (${metrics.completedTasks} completed, ${metrics.completionRate.toStringAsFixed(1)}%)');
       buffer.writeln('• Deepest Nested Level: Level ${metrics.maxDepth}');
       buffer.writeln('• Average Task Weight: ${metrics.averageWeight.toStringAsFixed(1)} / 10');
-      buffer.writeln('• Platform: Android / Flutter (Nested: Task Strategy v2.1.7)');
+      buffer.writeln('• Platform: Android / Flutter (Nested: Task Strategy v2.2.0)');
     }
 
     return buffer.toString();
@@ -813,7 +814,7 @@ class _FeedbackModalSheetState extends State<_FeedbackModalSheet> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
-                  'Nested v2.1.8 (Build 13)',
+                  'Nested v2.2.0 (Build 14)',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
